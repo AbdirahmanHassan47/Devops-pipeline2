@@ -2,15 +2,13 @@ from typing import Any
 
 import requests
 
-from webapp.constants import COINMARKETCAP_API_KEY, COINMARKETCAP_SYMBOLS
-
-_BASE_URL = "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest"
+from webapp.constants import BASE_URL, COINMARKETCAP_API_KEY, COINMARKETCAP_SYMBOLS
 
 
 def get_response() -> requests.Response:
     try:
         response = requests.get(
-            url=_BASE_URL,
+            url=BASE_URL,
             headers={
                 "Accept": "application/json",
                 "X-CMC_PRO_API_KEY": COINMARKETCAP_API_KEY,
@@ -26,10 +24,16 @@ def get_response() -> requests.Response:
         raise RuntimeError(f"API request failed: {e}") from e
 
 
-def transform(response: requests.Response) -> dict[str, Any] | None:
+def get_json_data() -> dict[str, Any]:
+    response = get_response()
     try:
-        data = response.json()
+        return response.json()
+    except requests.exceptions.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON response: {e}") from e
 
+
+def transform(data: dict[str, Any]) -> dict[str, Any]:
+    try:
         coin_data = next(iter(data["data"].values()))
         crypto_data = next(iter(coin_data))
         quote_dict = crypto_data["quote"]
@@ -57,5 +61,10 @@ def transform(response: requests.Response) -> dict[str, Any] | None:
             "cmc_rank": crypto_data.get("cmc_rank"),
         }
 
-    except (StopIteration, AttributeError, TypeError):
-        return None
+    except (StopIteration, KeyError, TypeError, AttributeError) as e:
+        raise RuntimeError(f"Invalid API response structure: {e}") from e
+
+
+def get_crypto_data() -> dict[str, Any]:
+    json_data = get_json_data()
+    return transform(json_data)

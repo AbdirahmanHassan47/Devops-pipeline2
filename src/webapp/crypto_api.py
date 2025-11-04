@@ -26,7 +26,7 @@ def get_response() -> requests.Response:
         raise RuntimeError(f"API request failed: {e}") from e
 
 
-def transform(response: requests.Response) -> dict[str, Any] | None:
+def transform(response: requests.Response) -> dict[str, Any]:
     try:
         data = response.json()
 
@@ -57,5 +57,12 @@ def transform(response: requests.Response) -> dict[str, Any] | None:
             "cmc_rank": crypto_data.get("cmc_rank"),
         }
 
-    except (StopIteration, AttributeError, TypeError):
-        return None
+    except (StopIteration, KeyError, TypeError, AttributeError) as e:
+        raise RuntimeError(f"Invalid API response structure: {e}") from e
+    except requests.exceptions.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON response: {e}") from e
+
+
+def get_crypto_data() -> dict[str, Any]:
+    response = get_response()
+    return transform(response)

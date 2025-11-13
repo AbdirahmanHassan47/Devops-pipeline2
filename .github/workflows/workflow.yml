@@ -1,41 +1,39 @@
-name: Test with pytest
+name: CI/CD Pipeline
 
 on:
+  push:
+    branches: [dev]
   workflow_dispatch:
     inputs:
-      logging_artifact:
-        description: "Generate logging artifact"
+      log_errors:
+        description: "Generate error logs on test failure"
         required: true
+        default: false
         type: boolean
 
+env:
+  COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
+  COINMARKETCAP_SYMBOLS: "BTC"
+  UPDATE_FREQ_SEC: 60
+
 jobs:
-  pytest:
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Resolve and install deps (main + dev extras)
-        run: |
-          uv lock            # generera lock i CI
-          uv sync --extra dev
-
-      - name: Run pytest with coverage
-        run: uv run pytest --cov=src/webapp --cov-report=term > pytest.log
-        env:
-          COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
-
-      - name: Upload log artifact if test failed
-        if: ${{ failure() && inputs.logging_artifact }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-log
-          path: pytest.log
+          python-version: "3.12"
+      
+      - name: Install uv
+        run: pip install uv
+      
+      - name: Install dependencies
+        run: uv sync --extra dev
+      
+      - name: Run tests
+        run: uv run pytest -v

@@ -67,8 +67,7 @@ jobs:
           cache-to: type=gha,mode=max   
 
 
-
-    azure:
+  azure:
       runs-on: ubuntu-latest
       steps:
         -

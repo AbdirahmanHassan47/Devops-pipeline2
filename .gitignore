@@ -56,7 +56,7 @@ Thumbs.db
 Desktop.ini
 
 # Jupyter Notebook
-.ipynb_checkpoints
+
 
 # Environment variables and secrets
 .env

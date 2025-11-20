@@ -1,12 +1,18 @@
+import os
+import sys
 import streamlit as st
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))      
+SRC_DIR = os.path.dirname(CURRENT_DIR)                        
+
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 from webapp.constants import UPDATE_FREQ_SEC
 from webapp.crypto_api import get_crypto_data
 from webapp.utils import format_number_with_suffix
 
 st.set_page_config(page_title="Crypto Price", layout="centered")
-
-
 @st.fragment(run_every=UPDATE_FREQ_SEC)
 def display_crypto_price():
     try:

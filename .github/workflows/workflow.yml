@@ -2,7 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches-ignore:
+      - main
   workflow_dispatch:
     inputs:
       log_errors:
@@ -20,61 +21,74 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install uv
         run: pip install uv
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
-      - name: Run tests
-        run: uv run pytest -v
+
+      # Vi loggar alltid pytest-output till fil, men vi laddar bara upp filen som artifact
+      # om testerna failar OCH log_errors=true.
+      - name: Run tests (capture log)
+        id: pytest
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run pytest -v 2>&1 | tee pytest-error.log
+
+      - name: Upload error log artifact (only when requested)
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.log_errors == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-error-log
+          path: pytest-error.log
+          retention-days: 7
 
   build:
     name: Build Docker Image
     needs: test
-    if: success()
+    if: needs.test.result == 'success'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/crypto-dashboard:latest
           cache-from: type=gha
-          cache-to: type=gha,mode=max   
+          cache-to: type=gha,mode=max
 
   azure:
     name: Deploy to Azure Web App
-    runs-on: ubuntu-latest
     needs: build
-    if: success()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
 
+    steps:
       - name: Deploy container to Azure Web App
         uses: azure/webapps-deploy@v3
         with:

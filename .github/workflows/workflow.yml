@@ -37,8 +37,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      # Vi loggar alltid pytest-output till fil, men vi laddar bara upp filen som artifact
-      # om testerna failar OCH log_errors=true.
       - name: Run tests (capture log)
         id: pytest
         shell: bash
